@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #ffffff;
+  color: #222222;
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+
+.chart-wrap {
+  width: 520px;
+  max-width: 90vw;
+}
+
+.chart-title {
+  text-align: center;
+  font-size: 20px;
+  margin: 0 0 24px;
+  color: #f1a5b0;
+  font-weight: 500;
+}
+
+.chart-controls {
+  margin-top: 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.chart-input {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 120px 24px;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #8a5c63;
+}
+
+.chart-input input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #f2c1c9;
+  font-size: 14px;
+  color: #5a2d33;
+}
+
+.chart-add {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #f2c1c9;
+  background: #ffe3e7;
+  color: #8a5c63;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chart-add:hover {
+  background: #ffd7dd;
+}
+
+.chart-export {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #f2c1c9;
+  background: #fff1f4;
+  color: #8a5c63;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chart-export:hover {
+  background: #ffe3e7;
+}
