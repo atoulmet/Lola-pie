@@ -1,13 +1,9 @@
 import { arc, pie, type PieArcDatum } from "d3-shape";
 
-type SliceInput = {
-  percent: number;
-  color?: string;
-  label?: string;
-};
+import type { ChartSlice } from "../lib/types";
 
 type CircleChartProps = {
-  slices: SliceInput[];
+  slices: ChartSlice[];
   size?: number;
   innerRadius?: number;
   svgId?: string;
@@ -69,8 +65,8 @@ export default function CircleChart({
   const cornerRadius = 4;
   const innerFillRadius = Math.max(innerRadius - 8, 0);
 
-  const pieData: PieArcDatum<SliceInput>[] = pie<SliceInput>()
-    .value((slice: SliceInput) => slice.percent)
+  const pieData: PieArcDatum<ChartSlice>[] = pie<ChartSlice>()
+    .value((slice: ChartSlice) => slice.percent)
     .sort(null)
     .padAngle(padAngle)(slices);
 
@@ -91,7 +87,14 @@ export default function CircleChart({
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
     >
-      <circle cx={centerX} cy={centerY} r={outerRadius + 8} fill="none" stroke={`color-mix(in srgb, ${baseColor} 40%, white)`} strokeWidth={5} />
+      <circle
+        cx={centerX}
+        cy={centerY}
+        r={outerRadius + 8}
+        fill="none"
+        stroke={`color-mix(in srgb, ${baseColor} 40%, white)`}
+        strokeWidth={5}
+      />
       <g transform={`translate(${centerX} ${centerY})`}>
         {pieData.map((slice, index) => {
           const path = arcGenerator(slice);
@@ -101,7 +104,7 @@ export default function CircleChart({
           const labelLines = splitLabel(labelText, 14);
           const color = slice.data.color ?? getSliceColor(baseColor, index);
           return (
-            <g key={`${slice.data.percent}-${index}`}>
+            <g key={slice.data.id ?? index}>
               <path
                 d={path ?? ""}
                 fill={color}
@@ -147,7 +150,12 @@ export default function CircleChart({
           );
         })}
       </g>
-      <circle cx={centerX} cy={centerY} r={innerFillRadius} fill={`color-mix(in srgb, ${baseColor} 30%, white)`} />
+      <circle
+        cx={centerX}
+        cy={centerY}
+        r={innerFillRadius}
+        fill={`color-mix(in srgb, ${baseColor} 30%, white)`}
+      />
     </svg>
   );
 }

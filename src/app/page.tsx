@@ -1,14 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import CircleChart from "../components/CircleChart";
 
-type SliceInput = {
-  id: string;
-  percent: string;
-  amount: string;
-  label: string;
-};
+import CircleChart from "../components/CircleChart";
+import { exportChartAsPng } from "../lib/exportChart";
+import type { SliceFormData } from "../lib/types";
 
 const makeId = () => crypto.randomUUID();
 
@@ -16,8 +12,23 @@ const formatValue = (value: number) => {
   return Math.round(value).toString();
 };
 
+const recalcPercents = (slices: SliceFormData[]): SliceFormData[] => {
+  const amounts = slices.map((slice) => {
+    const numeric = Number.parseFloat(slice.amount);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+  });
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  if (total === 0) {
+    return slices.map((slice) => ({ ...slice, percent: "0" }));
+  }
+  return slices.map((slice, index) => ({
+    ...slice,
+    percent: formatValue((amounts[index] / total) * 100),
+  }));
+};
+
 export default function Home() {
-  const [slices, setSlices] = useState<SliceInput[]>([
+  const [slices, setSlices] = useState<SliceFormData[]>([
     { id: makeId(), percent: "0", amount: "", label: "" },
   ]);
   const chartId = "circle-chart";
@@ -27,6 +38,7 @@ export default function Home() {
   const chartSlices = useMemo(
     () =>
       slices.map((slice) => ({
+        id: slice.id,
         percent: Number.parseFloat(slice.percent) || 0,
         label: slice.label,
       })),
@@ -38,20 +50,7 @@ export default function Home() {
       const next = prev.map((slice) =>
         slice.id === id ? { ...slice, amount: value } : slice,
       );
-      const amounts = next.map((slice) => {
-        const numeric = Number.parseFloat(
-          slice.id === id ? value : slice.amount,
-        );
-        return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-      });
-      const total = amounts.reduce((sum, amount) => sum + amount, 0);
-      if (total === 0) {
-        return next.map((slice) => ({ ...slice, percent: "0" }));
-      }
-      return next.map((slice, index) => ({
-        ...slice,
-        percent: formatValue((amounts[index] / total) * 100),
-      }));
+      return recalcPercents(next);
     });
   };
 
@@ -64,160 +63,20 @@ export default function Home() {
   };
 
   const addSlice = () => {
-    setSlices((prev) => [
-      ...prev,
-      { id: makeId(), percent: "0", amount: "", label: "" },
-    ]);
+    setSlices((prev) =>
+      recalcPercents([
+        ...prev,
+        { id: makeId(), percent: "0", amount: "", label: "" },
+      ]),
+    );
   };
 
   const removeSlice = (id: string) => {
     setSlices((prev) => {
       const next = prev.filter((slice) => slice.id !== id);
       if (next.length === 0) return prev;
-      const amounts = next.map((slice) => {
-        const numeric = Number.parseFloat(slice.amount);
-        return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
-      });
-      const total = amounts.reduce((sum, amount) => sum + amount, 0);
-      if (total === 0) {
-        return next.map((slice) => ({ ...slice, percent: "0" }));
-      }
-      return next.map((slice, index) => ({
-        ...slice,
-        percent: formatValue((amounts[index] / total) * 100),
-      }));
+      return recalcPercents(next);
     });
-  };
-
-  const embedPlaypenSans = async (svg: SVGSVGElement) => {
-    const fontCssUrl =
-      "https://fonts.googleapis.com/css2?family=Playpen+Sans:wght@400;500;600;700&display=swap";
-    const cssResponse = await fetch(fontCssUrl);
-    const cssText = await cssResponse.text();
-
-    const fontFaceBlocks = Array.from(
-      cssText.matchAll(/@font-face\s*{[^}]+}/g),
-    ).map((match) => match[0]);
-    if (fontFaceBlocks.length === 0) {
-      return;
-    }
-
-    const fontEntries = fontFaceBlocks
-      .map((block) => {
-        const weightMatch = block.match(/font-weight:\s*(\d+)/);
-        const urlMatch = block.match(
-          /url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/,
-        );
-        if (!weightMatch || !urlMatch) {
-          return null;
-        }
-        return {
-          weight: weightMatch[1],
-          url: urlMatch[1],
-        };
-      })
-      .filter((entry): entry is { weight: string; url: string } =>
-        Boolean(entry),
-      );
-
-    if (fontEntries.length === 0) {
-      return;
-    }
-
-    const uniqueUrls = Array.from(
-      new Set(fontEntries.map((entry) => entry.url)),
-    );
-    const fontBuffers = await Promise.all(
-      uniqueUrls.map(async (url) => {
-        const fontResponse = await fetch(url);
-        const fontBuffer = await fontResponse.arrayBuffer();
-        return { url, fontBuffer };
-      }),
-    );
-    const bufferToBase64 = (buffer: ArrayBuffer) => {
-      const bytes = new Uint8Array(buffer);
-      const chunkSize = 0x8000;
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-      }
-      return btoa(binary);
-    };
-
-    const fontMap = new Map(
-      fontBuffers.map(({ url, fontBuffer }) => [
-        url,
-        bufferToBase64(fontBuffer),
-      ]),
-    );
-
-    const style = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "style",
-    );
-    style.textContent = `
-      ${fontEntries
-        .map(
-          (entry) => `
-      @font-face {
-        font-family: 'Playpen Sans';
-        font-style: normal;
-        font-weight: ${entry.weight};
-        src: url(data:font/woff2;base64,${fontMap.get(entry.url) ?? ""}) format('woff2');
-      }`,
-        )
-        .join("\n")}
-      svg { font-family: 'Playpen Sans', sans-serif; }
-    `;
-    svg.prepend(style);
-  };
-
-  const exportChart = async () => {
-    const svg = document.getElementById(chartId);
-    if (!(svg instanceof SVGSVGElement)) {
-      return;
-    }
-    const serializer = new XMLSerializer();
-    const clonedSvg = svg.cloneNode(true) as SVGSVGElement;
-    await embedPlaypenSans(clonedSvg);
-    const source = serializer.serializeToString(clonedSvg);
-    const svgBlob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(svgBlob);
-    const image = new Image();
-    image.onload = () => {
-      const exportWidth = 900;
-      const exportHeight = 400;
-      const ratio = window.devicePixelRatio || 1;
-      const canvas = document.createElement("canvas");
-      canvas.width = exportWidth * ratio;
-      canvas.height = exportHeight * ratio;
-      canvas.style.width = `${exportWidth}px`;
-      canvas.style.height = `${exportHeight}px`;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, exportWidth, exportHeight);
-      ctx.drawImage(image, 0, 0, exportWidth, exportHeight);
-      URL.revokeObjectURL(url);
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          return;
-        }
-        const pngUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = pngUrl;
-        link.download = "circle-chart.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(pngUrl);
-      }, "image/png");
-    };
-    image.src = url;
   };
 
   return (
@@ -315,10 +174,7 @@ export default function Home() {
                 checked={showLabels}
                 onChange={(event) => setShowLabels(event.target.checked)}
               />
-              <div
-                className="toggle-track"
-                data-checked={showLabels}
-              >
+              <div className="toggle-track" data-checked={showLabels}>
                 <div className="toggle-thumb" />
               </div>
             </label>
@@ -330,7 +186,7 @@ export default function Home() {
           <button
             type="button"
             className="w-full py-2.5 px-3.5 rounded-[10px] border border-[#f2c1c9] bg-[#ffe3e7] text-[#8a5c63] font-semibold cursor-pointer hover:bg-[#ffd7dd] transition-colors duration-150"
-            onClick={exportChart}
+            onClick={() => exportChartAsPng(chartId)}
           >
             Export PNG
           </button>
