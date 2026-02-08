@@ -6,6 +6,7 @@ import CircleChart from "../components/CircleChart";
 type SliceInput = {
   id: string;
   percent: string;
+  amount: string;
   label: string;
 };
 
@@ -15,69 +16,11 @@ const formatValue = (value: number) => {
   return Math.round(value).toString();
 };
 
-const normalizeSlices = (rawSlices: SliceInput[], lockedId?: string) => {
-  const sanitized = rawSlices.map((slice) => {
-    const numeric = Number.parseFloat(slice.percent);
-    return {
-      ...slice,
-      value: Number.isFinite(numeric) ? Math.max(0, numeric) : 0,
-    };
-  });
-
-  const lockedSlice = lockedId ? sanitized.find((slice) => slice.id === lockedId) : undefined;
-  const lockedValue = lockedSlice ? Math.min(100, lockedSlice.value) : 0;
-  const targetTotal = Math.max(0, 100 - lockedValue);
-
-  const adjustable = sanitized.filter((slice) => slice.id !== lockedId);
-  const adjustableTotal = adjustable.reduce((sum, slice) => sum + slice.value, 0);
-
-  if (!adjustable.length) {
-    return sanitized.map((slice) => ({
-      ...slice,
-      percent: slice.id === lockedId ? slice.percent : "0",
-    }));
-  }
-
-  if (adjustableTotal === 0) {
-    return sanitized.map((slice) => ({
-      ...slice,
-      percent: slice.id === lockedId ? slice.percent : "0",
-    }));
-  }
-
-  const scaled = adjustable.map((slice) => {
-    const scaledValue = (slice.value / adjustableTotal) * targetTotal;
-    const floored = Math.floor(scaledValue);
-    return {
-      id: slice.id,
-      floored,
-      fraction: scaledValue - floored,
-    };
-  });
-
-  let remainder = targetTotal - scaled.reduce((sum, slice) => sum + slice.floored, 0);
-  const byFraction = [...scaled].sort((a, b) => b.fraction - a.fraction);
-  for (let i = 0; i < byFraction.length && remainder > 0; i += 1) {
-    byFraction[i].floored += 1;
-    remainder -= 1;
-  }
-
-  const finalMap = new Map(scaled.map((slice) => [slice.id, slice.floored]));
-  for (const slice of byFraction) {
-    finalMap.set(slice.id, slice.floored);
-  }
-
-  return sanitized.map((slice) => ({
-    ...slice,
-    percent: slice.id === lockedId ? slice.percent : formatValue(finalMap.get(slice.id) ?? 0),
-  }));
-};
 
 export default function Home() {
   const [slices, setSlices] = useState<SliceInput[]>([
-    { id: makeId(), percent: "100", label: "" },
+    { id: makeId(), percent: "0", amount: "", label: "" },
   ]);
-  const [lastEditedId, setLastEditedId] = useState<string | null>(null);
   const chartId = "circle-chart";
 
   const chartSlices = useMemo(
@@ -89,21 +32,36 @@ export default function Home() {
     [slices]
   );
 
-  const updatePercent = (id: string, value: string) => {
-    setLastEditedId(id);
-    setSlices((prev) => prev.map((slice) => (slice.id === id ? { ...slice, percent: value } : slice)));
+  const updateAmount = (id: string, value: string) => {
+    setSlices((prev) => prev.map((slice) => (slice.id === id ? { ...slice, amount: value } : slice)));
+  };
+
+  const calculatePercentages = () => {
+    setSlices((prev) => {
+      const amounts = prev.map((slice) => {
+        const numeric = Number.parseFloat(slice.amount);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+      });
+      const total = amounts.reduce((sum, amount) => sum + amount, 0);
+
+      if (total === 0) {
+        return prev.map((slice) => ({ ...slice, percent: "0" }));
+      }
+
+      return prev.map((slice, index) => {
+        const amount = amounts[index];
+        const percent = total > 0 ? (amount / total) * 100 : 0;
+        return { ...slice, percent: formatValue(percent) };
+      });
+    });
   };
 
   const updateLabel = (id: string, value: string) => {
     setSlices((prev) => prev.map((slice) => (slice.id === id ? { ...slice, label: value } : slice)));
   };
 
-  const normalizeOnBlur = () => {
-    setSlices((prev) => normalizeSlices(prev, lastEditedId ?? undefined));
-  };
-
   const addSlice = () => {
-    setSlices((prev) => [...prev, { id: makeId(), percent: "10", label: "" }]);
+    setSlices((prev) => [...prev, { id: makeId(), percent: "0", amount: "", label: "" }]);
   };
 
   const embedPlaypenSans = async (svg: SVGSVGElement) => {
@@ -186,21 +144,23 @@ export default function Home() {
     const url = URL.createObjectURL(svgBlob);
     const image = new Image();
     image.onload = () => {
-      const width = svg.width.baseVal.value || 600;
-      const height = svg.height.baseVal.value || 600;
+      const exportWidth = 900;
+      const exportHeight = 350;
       const ratio = window.devicePixelRatio || 1;
       const canvas = document.createElement("canvas");
-      canvas.width = width * ratio;
-      canvas.height = height * ratio;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      canvas.width = exportWidth * ratio;
+      canvas.height = exportHeight * ratio;
+      canvas.style.width = `${exportWidth}px`;
+      canvas.style.height = `${exportHeight}px`;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         URL.revokeObjectURL(url);
         return;
       }
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.drawImage(image, 0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, exportWidth, exportHeight);
+      ctx.drawImage(image, 0, 0, exportWidth, exportHeight);
       URL.revokeObjectURL(url);
       canvas.toBlob((blob) => {
         if (!blob) {
@@ -222,7 +182,7 @@ export default function Home() {
   return (
     <main>
       <div className="chart-wrap">
-        <h1 className="chart-title">Circle chart preview</h1>
+        <h1 className="chart-title">Camembert Lolita on the Road</h1>
         <CircleChart slices={chartSlices} svgId={chartId} />
         <div className="chart-controls">
           {slices.map((slice, index) => (
@@ -234,17 +194,21 @@ export default function Home() {
                 placeholder="Label"
                 onChange={(event) => updateLabel(slice.id, event.target.value)}
               />
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max="100"
-                step="1"
-                value={slice.percent}
-                onChange={(event) => updatePercent(slice.id, event.target.value)}
-                onBlur={normalizeOnBlur}
-              />
-              <span>%</span>
+              <div style={{ display: "flex", flexDirection: "row", gap: "4px" }}>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="1"
+                  value={slice.amount}
+                  placeholder="Montant"
+                  onChange={(event) => updateAmount(slice.id, event.target.value)}
+                  onBlur={calculatePercentages}
+                />
+                <span style={{ fontSize: "0.875rem", color: "#666" }}>
+                  {slice.percent}%
+                </span>
+              </div>
             </label>
           ))}
           <button type="button" className="chart-add" onClick={addSlice}>

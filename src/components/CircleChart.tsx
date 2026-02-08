@@ -1,3 +1,5 @@
+import { arc, pie, type PieArcDatum } from "d3-shape";
+
 type SliceInput = {
   percent: number;
   color?: string;
@@ -11,7 +13,6 @@ type CircleChartProps = {
   svgId?: string;
 };
 
-import { arc, pie, type PieArcDatum } from "d3-shape";
 
 const DEFAULT_COLORS = ["#ff9aa7", "#ffc0ca", "#ffd3dc", "#ffb0bb"];
 
@@ -48,14 +49,14 @@ const splitLabel = (label: string, maxChars: number) => {
 
 export default function CircleChart({
   slices,
-  size = 320,
-  innerRadius = 32,
+  size = 300,
+  innerRadius = 24,
   svgId,
 }: CircleChartProps) {
-  const total = slices.reduce((sum, slice) => sum + slice.percent, 0);
-  const labelPadding = 90;
-  const svgSize = size + labelPadding * 2;
-  const center = labelPadding + size / 2;
+  const svgWidth = 900;
+  const svgHeight = 350;
+  const centerX = svgWidth / 2;
+  const centerY = svgHeight / 2;
   const outerRadius = size / 2 - 2;
   const separatorWidth = 0.1;
   const padAngle = 0.02;
@@ -79,24 +80,25 @@ export default function CircleChart({
   return (
     <svg
       id={svgId}
-      width={svgSize}
-      height={svgSize}
-      viewBox={`0 0 ${svgSize} ${svgSize}`}
+      width={svgWidth}
+      height={svgHeight}
+      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       role="img"
     >
-      <circle cx={center} cy={center} r={outerRadius + 8} fill="none" stroke="#f7c7cf" strokeWidth={5} />
-      <g transform={`translate(${center} ${center})`}>
+      <circle cx={centerX} cy={centerY} r={outerRadius + 8} fill="none" stroke="#f7c7cf" strokeWidth={5} />
+      <g transform={`translate(${centerX} ${centerY})`}>
         {pieData.map((slice, index) => {
           const path = arcGenerator(slice);
           const [textX, textY] = arcGenerator.centroid(slice);
           const [labelX, labelY] = labelArc.centroid(slice);
           const labelText = slice.data.label?.trim() || `Slice ${index + 1}`;
           const labelLines = splitLabel(labelText, 14);
+          const sliceColor = slice.data.color ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length];
           return (
             <g key={`${slice.data.percent}-${index}`}>
               <path
                 d={path ?? ""}
-                fill={slice.data.color ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
+                fill={sliceColor}
                 stroke="#ffffff"
                 strokeWidth={separatorWidth}
                 strokeLinejoin="round"
@@ -107,8 +109,8 @@ export default function CircleChart({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fill="#ffffff"
-                fontSize={20}
-                fontWeight={500}
+                fontSize={24}
+                fontWeight={400}
               >
                 {formatPercent(slice.data.percent)}
               </text>
@@ -117,8 +119,8 @@ export default function CircleChart({
                 y={labelY}
                 textAnchor={labelX >= 0 ? "start" : "end"}
                 dominantBaseline="middle"
-                fill="#f1a5b0"
-                fontSize={22}
+                fill={sliceColor}
+                fontSize={24}
                 fontWeight={400}
               >
                 {labelLines.map((line, lineIndex) => (
@@ -135,8 +137,7 @@ export default function CircleChart({
           );
         })}
       </g>
-      <circle cx={center} cy={center} r={innerFillRadius} fill="#ffd7dd" />
+      <circle cx={centerX} cy={centerY} r={innerFillRadius} fill="#ffd7dd" />
     </svg>
   );
 }
-
