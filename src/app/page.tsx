@@ -22,6 +22,8 @@ export default function Home() {
     { id: makeId(), percent: "0", amount: "", label: "" },
   ]);
   const chartId = "circle-chart";
+  const [baseColor, setBaseColor] = useState("#FF949E");
+  const [showLabels, setShowLabels] = useState(true);
 
   const chartSlices = useMemo(
     () =>
@@ -33,26 +35,20 @@ export default function Home() {
   );
 
   const updateAmount = (id: string, value: string) => {
-    setSlices((prev) => prev.map((slice) => (slice.id === id ? { ...slice, amount: value } : slice)));
-  };
-
-  const calculatePercentages = () => {
     setSlices((prev) => {
-      const amounts = prev.map((slice) => {
-        const numeric = Number.parseFloat(slice.amount);
+      const next = prev.map((slice) => (slice.id === id ? { ...slice, amount: value } : slice));
+      const amounts = next.map((slice) => {
+        const numeric = Number.parseFloat(slice.id === id ? value : slice.amount);
         return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
       });
       const total = amounts.reduce((sum, amount) => sum + amount, 0);
-
       if (total === 0) {
-        return prev.map((slice) => ({ ...slice, percent: "0" }));
+        return next.map((slice) => ({ ...slice, percent: "0" }));
       }
-
-      return prev.map((slice, index) => {
-        const amount = amounts[index];
-        const percent = total > 0 ? (amount / total) * 100 : 0;
-        return { ...slice, percent: formatValue(percent) };
-      });
+      return next.map((slice, index) => ({
+        ...slice,
+        percent: formatValue((amounts[index] / total) * 100),
+      }));
     });
   };
 
@@ -62,6 +58,25 @@ export default function Home() {
 
   const addSlice = () => {
     setSlices((prev) => [...prev, { id: makeId(), percent: "0", amount: "", label: "" }]);
+  };
+
+  const removeSlice = (id: string) => {
+    setSlices((prev) => {
+      const next = prev.filter((slice) => slice.id !== id);
+      if (next.length === 0) return prev;
+      const amounts = next.map((slice) => {
+        const numeric = Number.parseFloat(slice.amount);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+      });
+      const total = amounts.reduce((sum, amount) => sum + amount, 0);
+      if (total === 0) {
+        return next.map((slice) => ({ ...slice, percent: "0" }));
+      }
+      return next.map((slice, index) => ({
+        ...slice,
+        percent: formatValue((amounts[index] / total) * 100),
+      }));
+    });
   };
 
   const embedPlaypenSans = async (svg: SVGSVGElement) => {
@@ -145,7 +160,7 @@ export default function Home() {
     const image = new Image();
     image.onload = () => {
       const exportWidth = 900;
-      const exportHeight = 350;
+      const exportHeight = 400;
       const ratio = window.devicePixelRatio || 1;
       const canvas = document.createElement("canvas");
       canvas.width = exportWidth * ratio;
@@ -183,7 +198,7 @@ export default function Home() {
     <main>
       <div className="chart-wrap">
         <h1 className="chart-title">Camembert Lolita on the Road</h1>
-        <CircleChart slices={chartSlices} svgId={chartId} />
+        <CircleChart slices={chartSlices} svgId={chartId} baseColor={baseColor} showLabels={showLabels} />
         <div className="chart-controls">
           {slices.map((slice, index) => (
             <label key={slice.id} className="chart-input">
@@ -203,14 +218,38 @@ export default function Home() {
                   value={slice.amount}
                   placeholder="Montant"
                   onChange={(event) => updateAmount(slice.id, event.target.value)}
-                  onBlur={calculatePercentages}
                 />
                 <span style={{ fontSize: "0.875rem", color: "#666" }}>
                   {slice.percent}%
                 </span>
               </div>
+              {slices.length > 1 ? (
+                <button
+                  type="button"
+                  className="chart-remove"
+                  onClick={() => removeSlice(slice.id)}
+                >
+                  &times;
+                </button>
+              ) : <span />}
             </label>
           ))}
+          <label className="chart-color">
+            <span>Color</span>
+            <input
+              type="color"
+              value={baseColor}
+              onChange={(event) => setBaseColor(event.target.value)}
+            />
+          </label>
+          <label className="chart-toggle">
+            <span>Labels</span>
+            <input
+              type="checkbox"
+              checked={showLabels}
+              onChange={(event) => setShowLabels(event.target.checked)}
+            />
+          </label>
           <button type="button" className="chart-add" onClick={addSlice}>
             Add slice
           </button>
