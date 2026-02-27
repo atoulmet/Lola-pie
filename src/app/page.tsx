@@ -101,7 +101,7 @@ export default function Home() {
             {slices.map((slice, index) => (
               <div
                 key={slice.id}
-                className="grid grid-cols-[1fr_1.4fr_120px_24px] items-center gap-2 text-sm text-[#8a5c63] border-b border-[#f9dde1] pb-3 last:border-0 last:pb-0"
+                className="grid grid-cols-[auto_1fr_auto_24px] items-center gap-3 text-sm text-[#8a5c63] border-b border-[#f9dde1] pb-3 last:border-0 last:pb-0"
               >
                 <span>Slice {index + 1}</span>
                 <input
@@ -119,7 +119,7 @@ export default function Home() {
                     min="0"
                     step="1"
                     value={slice.amount}
-                    placeholder="Montant"
+                    placeholder="Amount"
                     onChange={(event) =>
                       updateAmount(slice.id, event.target.value)
                     }

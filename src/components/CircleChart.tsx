@@ -67,7 +67,7 @@ export default function CircleChart({
 
   const pieData: PieArcDatum<ChartSlice>[] = pie<ChartSlice>()
     .value((slice: ChartSlice) => slice.percent)
-    .sort(null)
+    .sort((a, b) => b.percent - a.percent)
     .padAngle(padAngle)(slices);
 
   const arcGenerator = arc<(typeof pieData)[number]>()
@@ -102,7 +102,7 @@ export default function CircleChart({
           const [labelX, labelY] = labelArc.centroid(slice);
           const labelText = slice.data.label?.trim() || `Slice ${index + 1}`;
           const labelLines = splitLabel(labelText, 14);
-          const color = slice.data.color ?? getSliceColor(baseColor, index);
+          const color = slice.data.color ?? getSliceColor(baseColor, slice.index);
           return (
             <g key={slice.data.id ?? index}>
               <path
